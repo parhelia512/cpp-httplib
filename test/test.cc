@@ -8351,3 +8351,62 @@ TEST(MaxTimeoutTest, ContentStreamSSL) {
   max_timeout_test(svr, cli, timeout, threshold);
 }
 #endif
+
+void performance_test(const char *host) {
+  auto port = 1234;
+
+  Server svr;
+  svr.Get("/test", [&](const Request & /*req*/, Response &res) {
+    res.set_content("hello world!", "text/plain");
+  });
+
+  auto thread = std::thread([&]() { svr.listen(host, port); });
+
+  auto se = detail::scope_exit([&] {
+    svr.stop();
+    thread.join();
+    ASSERT_FALSE(svr.is_running());
+  });
+
+  svr.wait_until_ready();
+
+  // Measure the get req/res time
+  Client cli(host, port);
+
+  const int n = 10;
+  long long total_time = 0;
+
+  for (int i = 0; i < n; i++) {
+    auto start_time = std::chrono::high_resolution_clock::now();
+    auto res = cli.Get("/test");
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(
+                            end_time - start_time)
+                            .count();
+
+    // Verify response
+    ASSERT_TRUE(res);
+    ASSERT_TRUE(res != nullptr);
+    EXPECT_EQ(httplib::StatusCode::OK_200, res->status);
+    EXPECT_EQ(httplib::Error::Success, res.error());
+    EXPECT_EQ("hello world!", res->body);
+
+    // Verify elapsed time
+    std::cout << "elapsed_time: " << elapsed_time << "us" << std::endl;
+    EXPECT_LE(elapsed_time, 3000);
+
+    total_time += elapsed_time;
+  }
+
+  auto average_time = total_time / n;
+  std::cout << "average_time: " << average_time << "us" << std::endl;
+
+  // Verify average elapsed time
+  ASSERT_LE(average_time, 3000);
+}
+
+TEST(PerformanceTest, localhost) { performance_test("localhost"); }
+
+TEST(PerformanceTest, IPv4) { performance_test("127.0.0.1"); }
+
+TEST(PerformanceTest, IPv6) { performance_test("::1"); }
