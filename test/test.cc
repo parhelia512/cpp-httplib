@@ -13568,7 +13568,9 @@ protected:
 #ifdef CPPHTTPLIB_NO_EXCEPTIONS
       {
         std::istringstream iss(value);
-        iss >> retry_ms;
+        int v;
+        iss >> v;
+        if (!iss.fail()) { retry_ms = v; }
       }
 #else
       try {

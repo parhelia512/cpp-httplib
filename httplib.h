@@ -3264,7 +3264,9 @@ private:
 #ifdef CPPHTTPLIB_NO_EXCEPTIONS
       {
         std::istringstream iss(value);
-        iss >> retry_ms;
+        int v;
+        iss >> v;
+        if (!iss.fail()) { retry_ms = v; }
       }
 #else
       try {
@@ -6335,10 +6337,35 @@ inline bool parse_range_header(const std::string &s, Ranges &ranges) try {
         return;
       }
 
+#ifdef CPPHTTPLIB_NO_EXCEPTIONS
+      ssize_t first = -1;
+      ssize_t last = -1;
+      if (!lhs.empty()) {
+        std::istringstream iss(lhs);
+        long long v;
+        iss >> v;
+        if (iss.fail() || !iss.eof()) {
+          all_valid_ranges = false;
+          return;
+        }
+        first = static_cast<ssize_t>(v);
+      }
+      if (!rhs.empty()) {
+        std::istringstream iss(rhs);
+        long long v;
+        iss >> v;
+        if (iss.fail() || !iss.eof()) {
+          all_valid_ranges = false;
+          return;
+        }
+        last = static_cast<ssize_t>(v);
+      }
+#else
       const auto first =
           static_cast<ssize_t>(lhs.empty() ? -1 : std::stoll(lhs));
       const auto last =
           static_cast<ssize_t>(rhs.empty() ? -1 : std::stoll(rhs));
+#endif
       if ((first == -1 && last == -1) ||
           (first != -1 && last != -1 && first > last)) {
         all_valid_ranges = false;
