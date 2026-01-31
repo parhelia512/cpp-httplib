@@ -13403,8 +13403,10 @@ inline bool SSLClient::check_host_name(const char *pattern,
           partial_match = true;
         } else if (h.size() >= prefix_length) {
           partial_match =
-              std::equal(p.begin(), p.begin() + prefix_length, h.begin(),
-                         [](const char ca, const char cb) {
+              std::equal(p.begin(),
+                         p.begin() + static_cast<std::string::difference_type>(
+                                         prefix_length),
+                         h.begin(), [](const char ca, const char cb) {
                            return httplib::detail::case_ignore::to_lower(ca) ==
                                   httplib::detail::case_ignore::to_lower(cb);
                          });
